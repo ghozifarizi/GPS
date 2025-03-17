@@ -1,0 +1,72 @@
+import numpy as np
+
+def gps_to_azel(lat_target, lon_target, alt_target, lat_ref, lon_ref, alt_ref):
+    """
+    Menghitung azimuth dan elevasi dari lokasi antena ke target (satelit).
+
+    Args:
+        lat_target (float): Latitude target (derajat)
+        lon_target (float): Longitude target (derajat)
+        alt_target (float): Altitude target (meter)
+        lat_ref (float): Latitude referensi (derajat)
+        lon_ref (float): Longitude referensi (derajat)
+        alt_ref (float): Altitude referensi (meter)
+
+    Returns:
+        tuple: (azimuth, elevation) dalam derajat
+    """
+
+    # Konstanta
+    R_earth = 6371000  # Radius bumi dalam meter
+
+    # Konversi ke radian
+    lat_ref_rad = np.radians(lat_ref)
+    lon_ref_rad = np.radians(lon_ref)
+    lat_target_rad = np.radians(lat_target)
+    lon_target_rad = np.radians(lon_target)
+
+    # Konversi ke koordinat ECEF (Earth-Centered, Earth-Fixed)
+    def latlon_to_ecef(lat, lon, alt):
+        x = (R_earth + alt) * np.cos(lat) * np.cos(lon)
+        y = (R_earth + alt) * np.cos(lat) * np.sin(lon)
+        z = (R_earth + alt) * np.sin(lat)
+        return np.array([x, y, z])
+
+    sat_ecef = latlon_to_ecef(lat_target_rad, lon_target_rad, alt_target)
+    ant_ecef = latlon_to_ecef(lat_ref_rad, lon_ref_rad, alt_ref)
+
+    # Vektor dari antena ke satelit
+    vec_ant_to_sat = sat_ecef - ant_ecef
+
+    # Hitung azimuth
+    delta_lon = lon_target_rad - lon_ref_rad
+    x = np.cos(lat_target_rad) * np.sin(delta_lon)
+    y = (np.cos(lat_ref_rad) * np.sin(lat_target_rad) - 
+         np.sin(lat_ref_rad) * np.cos(lat_target_rad) * np.cos(delta_lon))
+    azimuth = np.degrees(np.arctan2(x, y))
+    if azimuth < 0:
+        azimuth += 360  # Pastikan azimuth dalam rentang [0, 360]
+
+    # Hitung elevasi dengan sudut antara vektor antena dan satelit
+    norm_ant = np.linalg.norm(ant_ecef)
+    norm_vec = np.linalg.norm(vec_ant_to_sat)
+
+    elevation = np.degrees(np.arcsin(np.dot(vec_ant_to_sat, ant_ecef) / (norm_ant * norm_vec)))
+
+    return azimuth, elevation
+
+
+# Tetap menggunakan nilai yang kamu berikan
+lat_target = -0.04  # Latitude target (satelit)
+lon_target = 145.99 # Longitude target (satelit)
+alt_target = 35783340  # Altitude target dalam meter
+
+lat_ref = -6.277  # Latitude lokasi antena (Mega Kuningan)
+lon_ref = 106.827  # Longitude lokasi antena
+alt_ref = 50  # Altitude lokasi antena
+
+# Hitung azimuth dan elevasi
+azimuth, elevation = gps_to_azel(lat_target, lon_target, alt_target, lat_ref, lon_ref, alt_ref)
+
+print(f"Azimuth: {azimuth:.2f}°")
+print(f"Elevation: {elevation:.2f}°")
